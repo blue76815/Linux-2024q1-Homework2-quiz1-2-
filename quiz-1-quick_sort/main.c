@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "list.h"
+#include "cpucycles.h"
+#include <time.h>
 
 typedef struct __node {
     //struct __node *left, *right;
@@ -160,29 +162,43 @@ void shuffle(int *array, size_t n)
 
 int main(int argc, char **argv)
 {
-    struct list_head *list = list_new();
+    //for (int i = 10; i <= 100000; i++) {
+    for (int i = 10; i <= 1000; i++) {
+    unsigned long long time_non_sort = 0, time_sort= 0;
+    struct timespec t1, t2;
 
-    /*
-    size_t count = 100000;
+    struct list_head *list = list_new();
+    size_t count = i, data_number=i;
 
     int *test_arr = malloc(sizeof(int) * count);
 
     for (int i = 0; i < count; ++i)
         test_arr[i] = i;
     shuffle(test_arr, count);
-    */
-    size_t count = 6;
-    int test_arr[6]={4,1,3,5,2,7};
+
     while (count--)
         list = list_construct(list, test_arr[count]);
 
-    list_print(list);    
-    quick_sort(&list);
+    
+    clock_gettime(CLOCK_MONOTONIC, &t1); //撮記時間t1
+    quick_sort(&list);//真正跑分析的函式
+
+    clock_gettime(CLOCK_MONOTONIC, &t2); //撮記時間t2
+    time_non_sort += (unsigned long long) (t2.tv_sec * 1000000000 + t2.tv_nsec) -
+                     (t1.tv_sec * 1000000000 + t1.tv_nsec);//轉成 nanosecond    
     assert(list_is_ordered(list));
-    list_print(list);
+    clock_gettime(CLOCK_MONOTONIC, &t1); //撮記時間t1
+    quick_sort(&list);//真正跑分析的函式
+    clock_gettime(CLOCK_MONOTONIC, &t2); //撮記時間t2
+    time_sort += (unsigned long long) (t2.tv_sec * 1000000000 + t2.tv_nsec) -
+                     (t1.tv_sec * 1000000000 + t1.tv_nsec);//轉成 nanosecond    
+    assert(list_is_ordered(list));
+    printf("%ld,%llu,%llu\n", data_number, time_non_sort, time_sort);   
+
     list_free(list);
 
-    //free(test_arr);
+    free(test_arr);
 
+    }
     return 0;
 }
