@@ -142,7 +142,6 @@ static inline void list_swap(struct list_head *entry1, struct list_head *entry2)
 
     list_del(entry2);
     list_replace(entry1, entry2);
-
     if (pos == entry1)
         pos = entry2;
     list_add(entry1, pos);
@@ -179,11 +178,11 @@ node_t *get_middle_node(struct list_head *head) {
 
 struct list_head *median_of_three(struct list_head *head)
 {
-    //若輸入的link list節點小於3個，則直接回傳原節點，不處裡
+    //type36  若輸入的link list節點小於3個，則直接回傳原節點，不處裡
     if(list_length(head)<3)
         return head;
     
-    node_t *low_node = list_first_entry(head, node_t, list);
+    node_t *low_node = list_first_entry(head, node_t, list);   
     node_t *middle_node =get_middle_node(head);
     node_t *high_node = list_last_entry(head, node_t, list);
 	//(2) 比較 A[low_node]、A[middle_node] 與 A[high_node] 這三筆資料，排出中間值。
@@ -431,34 +430,66 @@ void shuffle(int *array, size_t n)
 
 int main(int argc, char **argv)
 {
-    struct list_head *list = list_new();
+    //for (int i = 10; i <= 100000; i++) {
+    for (int i = 10; i <= 2000; i++) {
+        unsigned long long time_non_sort = 0, time_sort= 0;
+        unsigned long long time_median_of_three_sort = 0, time_random_pivot_sort= 0;
+        struct timespec t1, t2;
 
-    // size_t count = 6;
-    // int test_arr[6]={4,1,3,5,2,7};
-    
-    // size_t count = 5;
-    // int test_arr[5]={4,1,3,5,2};
+        struct list_head *q_sort_list = list_new();
+        struct list_head *q_sort_median_of_three_list = list_new();
+        struct list_head *q_sort_random_pivot_list = list_new();
 
-    size_t count = 20;
-    int test_arr[count];
-    for (int i = 0; i < count; ++i)
-        test_arr[i] = i;
-    shuffle(test_arr, count);
+        size_t count = i, data_number=i;
 
-    while (count--)
-        list = list_construct(list, test_arr[count]);
+        int *test_arr = malloc(sizeof(int) * count);
 
-    list_print(list);
+        for (int i = 0; i < count; ++i)
+            test_arr[i] = i;
+        shuffle(test_arr, count);
 
-    //quick_sort(&list);
-    quick_sort_random_pivot(&list);
-    
-    //quick_sort_median_of_three(&list); //終於成功
+        while (count--){
+            q_sort_list = list_construct(q_sort_list, test_arr[count]);
+            q_sort_median_of_three_list = list_construct(q_sort_median_of_three_list, test_arr[count]);
+            q_sort_random_pivot_list = list_construct(q_sort_random_pivot_list, test_arr[count]);
+        }
+            
 
-    printf("\r\n after_list ");
-    
-    list_print(list);
+        
+        clock_gettime(CLOCK_MONOTONIC, &t1); //撮記時間t1
+        quick_sort(&q_sort_list);//真正跑分析的函式
+        clock_gettime(CLOCK_MONOTONIC, &t2); //撮記時間t2
+        time_non_sort += (unsigned long long) (t2.tv_sec * 1000000000 + t2.tv_nsec) -
+                        (t1.tv_sec * 1000000000 + t1.tv_nsec);//轉成 nanosecond    
+          
+        assert(list_is_ordered(q_sort_list));
+ 
+        
 
-    list_free(list);    
+        clock_gettime(CLOCK_MONOTONIC, &t1); //撮記時間t1
+        quick_sort_median_of_three(&q_sort_median_of_three_list);//真正跑分析的函式
+        clock_gettime(CLOCK_MONOTONIC, &t2); //撮記時間t2
+        time_median_of_three_sort += (unsigned long long) (t2.tv_sec * 1000000000 + t2.tv_nsec) -
+                        (t1.tv_sec * 1000000000 + t1.tv_nsec);//轉成 nanosecond   
+        
+        assert(list_is_ordered(q_sort_median_of_three_list));
+
+        clock_gettime(CLOCK_MONOTONIC, &t1); //撮記時間t1
+        quick_sort_random_pivot(&q_sort_random_pivot_list);//真正跑分析的函式
+        clock_gettime(CLOCK_MONOTONIC, &t2); //撮記時間t2
+        time_random_pivot_sort += (unsigned long long) (t2.tv_sec * 1000000000 + t2.tv_nsec) -
+                        (t1.tv_sec * 1000000000 + t1.tv_nsec);//轉成 nanosecond                    
+        
+        assert(list_is_ordered(q_sort_random_pivot_list));
+        
+        printf("%ld,%llu,%llu,%llu\n", data_number, time_non_sort,time_median_of_three_sort,time_random_pivot_sort); 
+        
+        list_free(q_sort_list);
+        list_free(q_sort_median_of_three_list);
+        list_free(q_sort_random_pivot_list);
+
+        free(test_arr);
+
+    }//end for (int i = 10; i <= 1000; i++)
     return 0;
 }

@@ -10,4 +10,5 @@ set key left
 
 plot \
 "data.csv" using 1:2 with linespoints linewidth 1 title "qsort", \
-"data.csv" using 1:3 with linespoints linewidth 1 title "non-qsort"
+"data.csv" using 1:3 with linespoints linewidth 1 title "median_of_three", \
+"data.csv" using 1:4 with linespoints linewidth 1 title "random_pivot"

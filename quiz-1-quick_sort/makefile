@@ -16,8 +16,8 @@ all: ${EXE}
 plot:
 	sudo taskset -c 0 ./main > data.csv 
 	gnuplot plot_qsort.gp
-	mv data.csv  1000_data.csv 
-	mv qsort.png 1000_qsort.png
+	mv data.csv  2000_data.csv 
+	mv qsort.png 2000_qsort.png
 
 clean:
 	rm ${EXE}
