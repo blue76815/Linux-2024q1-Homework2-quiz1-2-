@@ -6,10 +6,9 @@
 #include "list.h"
 #include "cpucycles.h"
 #include <time.h>
+#include <string.h>
 
 typedef struct __node {
-    //struct __node *left, *right;
-    //struct __node *next;
     struct list_head list;
     long value;
 } node_t;
@@ -56,6 +55,9 @@ void list_print(struct list_head *head)
     return;
 }
 
+
+
+
 void list_free(struct list_head *l)
 {
 	if (l== NULL)
@@ -89,6 +91,7 @@ struct list_head *list_tail(struct list_head *head) {
     return head->prev;
 }
 
+
 node_t *list_remove_head(struct list_head *head)
 {
     if (!head || list_empty(head))
@@ -100,6 +103,156 @@ node_t *list_remove_head(struct list_head *head)
 
 }
 
+
+node_t *find_median_of_three(node_t *a, node_t *b, node_t *c) {
+    if ((a->value > b->value && a->value < c->value) || (a->value > c->value && a->value < b->value)) {
+        return a;
+    } else if ((b->value > a->value && b->value < c->value) || (b->value > c->value && b->value < a->value)) {
+        return b;
+    } else {
+        return c;
+    }
+}
+
+/**
+ * https://github.com/torvalds/linux/blob/master/include/linux/list.h
+ * list_replace - replace old entry by new one
+ * @old : the element to be replaced
+ * @new : the new element to insert
+ *
+ * If @old was empty, it will be overwritten.
+ */
+static inline void list_replace(struct list_head *old, struct list_head *new)
+{
+    new->next = old->next;
+    new->next->prev = new;
+    new->prev = old->prev;
+    new->prev->next = new;
+}
+
+/**
+ * https://github.com/torvalds/linux/blob/master/include/linux/list.h
+ * list_swap - replace entry1 with entry2 and re-add entry1 at entry2's position
+ * @entry1: the location to place entry2
+ * @entry2: the location to place entry1
+ */
+static inline void list_swap(struct list_head *entry1, struct list_head *entry2)
+{
+    struct list_head *pos = entry2->prev;
+
+    list_del(entry2);
+    list_replace(entry1, entry2);
+
+    if (pos == entry1)
+        pos = entry2;
+    list_add(entry1, pos);
+}
+
+
+struct list_head* swap_nodes(node_t *node1, node_t *node2, struct list_head *head) {
+    if (node1 == node2) return head;
+    
+    list_swap(&node1->list,&node2->list);
+    // If node1 or node2 was the head, update head
+    if (&node1->list == head) {
+        head = &node2->list;
+    } else if (&node2->list == head) {
+        head = &node1->list;
+    }
+
+    return head;
+}
+
+//參照 快慢指標作法
+// https://hackmd.io/@sysprog/ry8NwAMvT
+node_t *get_middle_node(struct list_head *head) {
+    struct list_head *slow = head->next;
+    struct list_head *fast = head->next;
+
+    while (fast != head && fast->next != head) {
+        slow = slow->next;
+        fast = fast->next->next;
+    }
+
+    return list_entry(slow, node_t, list);
+}
+
+struct list_head *median_of_three(struct list_head *head)
+{
+    //若輸入的link list節點小於3個，則直接回傳原節點，不處裡
+    if(list_length(head)<3)
+        return head;
+    
+    node_t *low_node = list_first_entry(head, node_t, list);
+    
+    node_t *middle_node =get_middle_node(head);
+
+    node_t *high_node = list_last_entry(head, node_t, list);
+	//(2) 比較 A[low_node]、A[middle_node] 與 A[high_node] 這三筆資料，排出中間值。
+	//c. 將此中間值再與 A[left] 做交換
+	//(3) 讓現在新的 A[left] 作為 pivot
+
+    node_t *middle_value_node=find_median_of_three(low_node,middle_node,high_node);
+
+    // 交換中間值節點與頭節點
+    head=swap_nodes(low_node, middle_value_node,head);
+
+    return head;		
+}
+
+
+
+void quick_sort_median_of_three(struct list_head **head)
+{
+    int n = list_length(*head);
+    int pivot_value;
+    int i = 0;
+    int max_level = 2 * n;
+    struct list_head  *begin[max_level];
+    begin[0] = *head;
+    for (int i = 1; i < max_level; i++)
+        begin[i] = list_new();   
+
+    struct list_head  *result = list_new(), *left = list_new(), *right = list_new();//OK
+        
+    while (i >= 0) {
+        struct list_head *L = begin[i]->next, *R=begin[i]->prev;
+        if (L!=R) {		
+            
+            begin[i]=median_of_three(begin[i]); // 在這行加入 median_of_three（begin[i]）預先處裡 link list
+            
+            node_t *pivot = list_remove_head(begin[i]);
+			pivot_value = pivot->value;
+
+            node_t *entry, *safe;
+            list_for_each_entry_safe(entry, safe, begin[i], list){
+                list_del(&entry->list);
+                list_add(&entry->list,entry->value > pivot_value? right:left);
+            }                             	
+            list_splice_init(left, begin[i]);
+            list_add(&pivot->list, begin[i + 1]);
+            list_splice_init(right, begin[i + 2]);
+
+            i += 2;
+        } else {
+            if (list_is_singular(begin[i]))
+                list_splice_init(begin[i], result);
+
+            i--;
+        }
+    }
+
+    for (int i = 0; i < max_level; i++)
+        list_free(begin[i]);
+    
+    list_free(left);
+    list_free(right);
+
+	*head = result;
+}
+
+//參考  vax-r  同學寫法
+// https://hackmd.io/@vax-r/linux2024-homework2#%E6%B8%AC%E9%A9%97%E4%B8%80
 void quick_sort(struct list_head **head)
 {
     int n = list_length(*head);
@@ -146,6 +299,7 @@ void quick_sort(struct list_head **head)
 	*head = result;
 }
 
+
 /* shuffle array, only work if n < RAND_MAX */
 void shuffle(int *array, size_t n)
 {
@@ -160,18 +314,21 @@ void shuffle(int *array, size_t n)
     }
 }
 
+
+
+
 int main(int argc, char **argv)
 {
-    //for (int i = 10; i <= 100000; i++) {
-    for (int i = 10; i <= 1000; i++) {
-    unsigned long long time_non_sort = 0, time_sort= 0;
-    struct timespec t1, t2;
-
     struct list_head *list = list_new();
-    size_t count = i, data_number=i;
 
-    int *test_arr = malloc(sizeof(int) * count);
+    // size_t count = 6;
+    // int test_arr[6]={4,1,3,5,2,7};
+    
+    // size_t count = 5;
+    // int test_arr[5]={4,1,3,5,2};
 
+    size_t count = 20;
+    int test_arr[count];
     for (int i = 0; i < count; ++i)
         test_arr[i] = i;
     shuffle(test_arr, count);
@@ -179,26 +336,17 @@ int main(int argc, char **argv)
     while (count--)
         list = list_construct(list, test_arr[count]);
 
+    list_print(list);
+
+    //quick_sort(&list);
+
     
-    clock_gettime(CLOCK_MONOTONIC, &t1); //撮記時間t1
-    quick_sort(&list);//真正跑分析的函式
+    quick_sort_median_of_three(&list); //終於成功
 
-    clock_gettime(CLOCK_MONOTONIC, &t2); //撮記時間t2
-    time_non_sort += (unsigned long long) (t2.tv_sec * 1000000000 + t2.tv_nsec) -
-                     (t1.tv_sec * 1000000000 + t1.tv_nsec);//轉成 nanosecond    
-    assert(list_is_ordered(list));
-    clock_gettime(CLOCK_MONOTONIC, &t1); //撮記時間t1
-    quick_sort(&list);//真正跑分析的函式
-    clock_gettime(CLOCK_MONOTONIC, &t2); //撮記時間t2
-    time_sort += (unsigned long long) (t2.tv_sec * 1000000000 + t2.tv_nsec) -
-                     (t1.tv_sec * 1000000000 + t1.tv_nsec);//轉成 nanosecond    
-    assert(list_is_ordered(list));
-    printf("%ld,%llu,%llu\n", data_number, time_non_sort, time_sort);   
+    printf("\r\n after_list ");
+    
+    list_print(list);
 
-    list_free(list);
-
-    free(test_arr);
-
-    }
+    list_free(list);    
     return 0;
 }
