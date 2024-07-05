@@ -184,9 +184,7 @@ struct list_head *median_of_three(struct list_head *head)
         return head;
     
     node_t *low_node = list_first_entry(head, node_t, list);
-    
     node_t *middle_node =get_middle_node(head);
-
     node_t *high_node = list_last_entry(head, node_t, list);
 	//(2) 比較 A[low_node]、A[middle_node] 與 A[high_node] 這三筆資料，排出中間值。
 	//c. 將此中間值再與 A[left] 做交換
@@ -198,6 +196,59 @@ struct list_head *median_of_three(struct list_head *head)
     head=swap_nodes(low_node, middle_value_node,head);
 
     return head;		
+}
+
+
+node_t *random_pivot(struct list_head *head) {
+    /*  step1. 用亂數任選三個，
+        step2. 再用其中的中間值作為 pivot。
+    */
+    int random_n[3],list_len=list_length(head);
+    memset(random_n,0x00,sizeof(random_n));
+    if(list_len<=2)
+    {   // 若 link list 長度不足3個時，則從2個節點隨機取樣
+        node_t *nodes;
+        struct list_head *pos_tmp;
+        int random_n=rand()%list_len;
+        list_for_each(pos_tmp, head) {
+            if (random_n == 0)
+            {
+                nodes= list_entry(pos_tmp, node_t, list);
+                return nodes;
+            } 
+            random_n--;
+        }
+    }
+
+    for(int i=0;i<3;i++){
+        random_n[i]=rand()%list_len;
+        if(i==1 && random_n[0]==random_n[1]){
+            i--;
+            continue;
+        }
+            
+        if(i==2 && (random_n[0]==random_n[2] || random_n[1]==random_n[2])){
+            i--;
+            continue;
+        }
+  
+    }
+
+    node_t *nodes[3] = {NULL, NULL, NULL};
+    struct list_head *pos;
+    int count = 0;
+    list_for_each(pos, head) {
+        if (count == random_n[0]) 
+            nodes[0] = list_entry(pos, node_t, list);
+        if (count == random_n[1]) 
+            nodes[1] = list_entry(pos, node_t, list);
+        if (count == random_n[2]) 
+            nodes[2] = list_entry(pos, node_t, list);
+        count++;
+    }
+
+    // Find the median of the three nodes
+    return find_median_of_three(nodes[0], nodes[1], nodes[2]);
 }
 
 
@@ -221,6 +272,69 @@ void quick_sort_median_of_three(struct list_head **head)
             
             begin[i]=median_of_three(begin[i]); // 在這行加入 median_of_three（begin[i]）預先處裡 link list
             
+            node_t *pivot = list_remove_head(begin[i]);
+			pivot_value = pivot->value;
+
+            node_t *entry, *safe;
+            list_for_each_entry_safe(entry, safe, begin[i], list){
+                list_del(&entry->list);
+                list_add(&entry->list,entry->value > pivot_value? right:left);
+            }                             	
+            list_splice_init(left, begin[i]);
+            list_add(&pivot->list, begin[i + 1]);
+            list_splice_init(right, begin[i + 2]);
+
+            i += 2;
+        } else {
+            if (list_is_singular(begin[i]))
+                list_splice_init(begin[i], result);
+
+            i--;
+        }
+    }
+
+    for (int i = 0; i < max_level; i++)
+        list_free(begin[i]);
+    
+    list_free(left);
+    list_free(right);
+
+	*head = result;
+}
+
+
+void quick_sort_random_pivot(struct list_head **head)
+{
+    int n = list_length(*head);
+    int pivot_value;
+    int i = 0;
+    int max_level = 2 * n;
+    struct list_head  *begin[max_level];
+    begin[0] = *head;
+    for (int i = 1; i < max_level; i++)
+        begin[i] = list_new();   
+
+    struct list_head  *result = list_new(), *left = list_new(), *right = list_new();//OK
+        
+    while (i >= 0) {
+        struct list_head *L = begin[i]->next, *R=begin[i]->prev;
+        if (L!=R) {		
+            
+            // 這三行是 做 random pivot
+            /*
+              step0. 先準備好 begin[i]的 head 節點，準備之後做交換用==> *head_node 
+              step1. 用亂數任選三個，再用其中的中間值作為 pivot。
+              step2. 再用其中的中間值作為 pivot。
+              step1~step2 就是 random_pivot_node=random_pivot(begin[i]); 在處裡
+              最後產生 random_pivot_node
+              step4. swap_nodes(begin[i], head_node, random_pivot_node);
+              代表 begin[i] link list 的 pivot 要改成 random_pivot_node做排序
+            */
+
+            node_t *head_node = list_first_entry(begin[i], node_t, list);
+            node_t *random_pivot_node=random_pivot(begin[i]);
+            begin[i]=swap_nodes(head_node, random_pivot_node,begin[i]);
+
             node_t *pivot = list_remove_head(begin[i]);
 			pivot_value = pivot->value;
 
@@ -315,8 +429,6 @@ void shuffle(int *array, size_t n)
 }
 
 
-
-
 int main(int argc, char **argv)
 {
     struct list_head *list = list_new();
@@ -339,9 +451,9 @@ int main(int argc, char **argv)
     list_print(list);
 
     //quick_sort(&list);
-
+    quick_sort_random_pivot(&list);
     
-    quick_sort_median_of_three(&list); //終於成功
+    //quick_sort_median_of_three(&list); //終於成功
 
     printf("\r\n after_list ");
     
