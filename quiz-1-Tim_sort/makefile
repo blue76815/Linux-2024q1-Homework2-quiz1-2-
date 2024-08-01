@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -O1 -g -pthread -Wall
+CFLAGS = -O0 -g -pthread -Wall
 
 OBJS := main.o timsort.o
 

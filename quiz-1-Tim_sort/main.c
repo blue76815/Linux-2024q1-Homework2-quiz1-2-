@@ -136,6 +136,8 @@ int main(void)
                check_list(&testdata_head, nums) ? "sorted" : "not sorted");
         test++;
     }
-
+    free(samples);
+    free(warmdata);
+    free(testdata);
     return 0;
 }
